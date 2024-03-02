@@ -83,7 +83,7 @@ class MultiFileReader:
         self.close()
         return False 
 
-TUPLE_SIZE = 8       # We're going to pack the doc_id and tf values in this 
+TUPLE_SIZE = 6       # We're going to pack the doc_id and tf values in this 
                      # many bytes.
 TF_MASK = 2 ** 16 - 1 # Masking the 16 low bits of an integer
 
@@ -161,8 +161,7 @@ class InvertedIndex:
                 for i in range(self.df[w]):
                     doc_id = int.from_bytes(b[i*TUPLE_SIZE:i*TUPLE_SIZE+4], 'big')
                     tf = int.from_bytes(b[i*TUPLE_SIZE+4:(i+1)*TUPLE_SIZE], 'big')
-                    doc_len = int.from_bytes(b[i*TUPLE_SIZE+6:(i+1)*TUPLE_SIZE], 'big')
-                    posting_list.append((doc_id, tf, doc_len))
+                    posting_list.append((doc_id, tf))
                 yield w, posting_list
 
     def read_a_posting_list(self, base_dir, w, bucket_name=None):
@@ -175,8 +174,7 @@ class InvertedIndex:
             for i in range(self.df[w]):
                 doc_id = int.from_bytes(b[i*TUPLE_SIZE:i*TUPLE_SIZE+4], 'big')
                 tf = int.from_bytes(b[i*TUPLE_SIZE+4:(i+1)*TUPLE_SIZE], 'big')
-                doc_len = int.from_bytes(b[i*TUPLE_SIZE+6:(i+1)*TUPLE_SIZE], 'big')
-                posting_list.append((doc_id, tf, doc_len))
+                posting_list.append((doc_id, tf))
         return posting_list
 
     @staticmethod
@@ -187,8 +185,8 @@ class InvertedIndex:
         with closing(MultiFileWriter(base_dir, bucket_id, bucket_name)) as writer:
             for w, pl in list_w_pl: 
                 # convert to bytes
-                b = b''.join([(doc_id << 32 | (tf & TF_MASK) << 16 | doc_len).to_bytes(TUPLE_SIZE, 'big')
-                          for doc_id, tf, doc_len in pl])
+                b = b''.join([(doc_id << 16 | (tf & TF_MASK)).to_bytes(TUPLE_SIZE, 'big')
+                              for doc_id, tf in pl])
                 # write to file(s)
                 locs = writer.write(b)
                 # save file locations to index
