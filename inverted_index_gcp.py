@@ -101,6 +101,8 @@ class InvertedIndex:
         self.doc_len = {}
         # stores document frequency per term
         self.df = Counter()
+
+        self.norm = {}
         # stores total frequency per term
         self.term_total = Counter()
         # stores posting list per term while building the index (internally), 
