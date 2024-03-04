@@ -113,10 +113,10 @@ def search_anchor(inverted):
     return res
 
 
-def search(inverted_title, inverted_body, inverted_anchor, query, simFunc):
-    score_title = simFunc(query, inverted_title)
-    score_body = simFunc(query, inverted_body)
-    score_anchor = simFunc(query, inverted_anchor)
+def search(inverted_title, inverted_body, inverted_anchor, query):
+    score_title = cosine_similarity(query, inverted_title)
+    score_body = cosine_similarity(query, inverted_body)
+    score_anchor = cosine_similarity(query, inverted_anchor)
 
     res_dict = defaultdict(float)
     
