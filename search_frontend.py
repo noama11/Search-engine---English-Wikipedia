@@ -35,8 +35,11 @@ def search():
     if len(query) == 0:
         return jsonify(res)
     # BEGIN SOLUTION
-    idx_title = InvertedIndex.read_index("bucket_title", 'index_title', "207219783saturday")
-    res = search_res(idx_title, query)
+    idx_title = InvertedIndex.read_index("bucket_title", 'index_title', "207219783opt")
+    idx_body = InvertedIndex.read_index("bucket_body", 'index_body', "207219783opt")
+    idx_anchor = InvertedIndex.read_index("bucket_title", 'index_title', "207219783opt")
+
+    res = search(idx_title, idx_body, idx_anchor, query)
     # END SOLUTION
     return jsonify(res)
 
