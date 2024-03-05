@@ -113,7 +113,7 @@ def search_anchor(inverted):
     return res
 
 
-def search(inverted_title, inverted_body, inverted_anchor, query):
+def search_res(inverted_title, inverted_body, inverted_anchor, query):
     score_title = cosine_similarity(query, inverted_title)
     score_body = cosine_similarity(query, inverted_body)
     score_anchor = cosine_similarity(query, inverted_anchor)
