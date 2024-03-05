@@ -1,7 +1,9 @@
 from flask import Flask, request, jsonify
 from beckend import*
 from inverted_index_gcp import*
+import logging
 
+logging.basicConfig(level=logging.DEBUG)
 
 class MyFlaskApp(Flask):
     def run(self, host=None, port=None, debug=None, **options):
@@ -11,6 +13,9 @@ class MyFlaskApp(Flask):
 app = MyFlaskApp(__name__)
 app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
 
+
+idx_title = InvertedIndex.read_index("bucket_title", 'index_title', "noam209263805")
+idx_body = InvertedIndex.read_index("bucket_body", 'index_body', "noam209263805")
 
 @app.route("/search")
 def search():
@@ -30,18 +35,19 @@ def search():
         list of up to 100 search results, ordered from best to worst where each 
         element is a tuple (wiki_id, title).
     '''
-    res = []
-    query = request.args.get('query', '')
-    if len(query) == 0:
+    try:
+        res = []
+        query = request.args.get('query', '')
+        if len(query) == 0:
+            return jsonify(res)
+        # BEGIN SOLUTION
+        res = search_res(idx_title, idx_body, idx_title, query)
+        # END SOLUTION
         return jsonify(res)
-    # BEGIN SOLUTION
-    idx_title = InvertedIndex.read_index("bucket_title", 'index_title', "207219783opt")
-    # idx_body = InvertedIndex.read_index("bucket_body", 'index_body', "207219783opt")
-    # idx_anchor = InvertedIndex.read_index("bucket_title", 'index_title', "207219783opt")
-
-    res = search_res(idx_title, idx_title, idx_title, query)
-    # END SOLUTION
-    return jsonify(res)
+    except Exception as e:
+        logging.exception("ERRRRRRor", e)
+        response = ('error', str(e))
+        return jsonify(response)
 
 
 @app.route("/search_body")
