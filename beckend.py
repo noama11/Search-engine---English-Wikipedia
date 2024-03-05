@@ -4,6 +4,7 @@ import builtins as pybuiltins
 from contextlib import closing
 from nltk.corpus import stopwords
 from inverted_index_gcp import *
+from nltk.stem.porter import *
 
 
 def read_posting_list(inverted, bucket_name, w):
@@ -28,28 +29,25 @@ def read_posting_list(inverted, bucket_name, w):
             posting_list.append((doc_id, tf))
         return posting_list
 
+# stop words
+english_stopwords = frozenset(stopwords.words('english'))
+corpus_stopwords = ['category', 'references', 'also', 'links', 'extenal', 'see', 'thumb', 'became', 'may']
+RE_WORD = re.compile(r"""[\#\@\w](['\-]?\w){2,24}""", re.UNICODE)
+all_stopwords = english_stopwords.union(corpus_stopwords)
+
+
+# tokenize and stemming
+def tokenize_stemming(text):
+    list_token = []
+    stemmer = PorterStemmer()
+    tokens = [token.group() for token in RE_WORD.finditer(text.lower())]
+    for token in tokens:
+        if token not in english_stopwords:
+            list_token.append(stemmer.stem(token))
+    return list_token
+
 def term_frequency(text, id):
-    ''' Count the frequency of each word in `text` (tf) that is not included in
-    `all_stopwords` and return entries that will go into our posting lists.
-    Parameters:
-    -----------
-        text: str
-            Text of one document
-        id: int
-            Document id
-    Returns:
-    --------
-        List of tuples
-            A list of (token, (doc_id, normalized_tf)) pairs
-            for example: [("Anarchism", (12, 0.5)), ...]
-    '''
-
-    english_stopwords = frozenset(stopwords.words('english'))
-    corpus_stopwords = ['category', 'references', 'also', 'links', 'extenal', 'see', 'thumb']
-    all_stopwords = english_stopwords.union(corpus_stopwords)
-
-    # Count the frequency of each word that is not a stopword
-    tokens = text
+    tokens = tokenize_stemming(text)
     word_freq = {}
     for token in tokens:
         if token not in all_stopwords:
@@ -58,7 +56,6 @@ def term_frequency(text, id):
             else:
                 word_freq[token] += 1
     lst_tuples = [(token, (id, freq)) for token, freq in word_freq.items()]
-
     return lst_tuples
 
 
@@ -91,12 +88,12 @@ def cosine_similarity(query, index):
         for doc_id, freq in posting_list:  
           w_term_doc = calculate_tf_idf(index, term, freq/index.doc_len[doc_id])
           dict_cosine_sim[doc_id] += (w_term_doc)*(w_term_query)
-        
-    for doc_id in list(dict_cosine_sim.keys()):
-      Word_doc_id__weight = index.norm[doc_id]
-      dict_cosine_sim[doc_id] /= ( math.sqrt(pybuiltins.sum(value[1] ** 2 for value in query_list_values) * Word_doc_id__weight ))
 
-
+    if (index == "body"):
+        for doc_id in list(dict_cosine_sim.keys()):
+            Word_doc_id__weight = index.norm[doc_id]
+            dict_cosine_sim[doc_id] /= (
+                math.sqrt(pybuiltins.sum(value[1] ** 2 for value in query_list_values) * Word_doc_id__weight))
 
     sorted_docs = sorted(dict_cosine_sim.items(), key=lambda x: x[1], reverse=True)
     top_100_docs = sorted_docs[:100]
@@ -116,7 +113,7 @@ def search_anchor(inverted):
 def search_res(inverted_title, inverted_body, inverted_anchor, query):
     score_title = cosine_similarity(query, inverted_title)
     score_body = cosine_similarity(query, inverted_body)
-    score_anchor = cosine_similarity(query, inverted_anchor)
+    # score_anchor = cosine_similarity(query, inverted_anchor)
 
     res_dict = defaultdict(float)
     
@@ -126,8 +123,8 @@ def search_res(inverted_title, inverted_body, inverted_anchor, query):
     for doc_id, score in score_body:
         res_dict[doc_id] += score * 1/16
 
-    for doc_id, score in score_anchor:
-        res_dict[doc_id] += score * 7/16
+    # for doc_id, score in score_anchor:
+    #     res_dict[doc_id] += 7/16
 
 
     sorted_docs = sorted(res_dict.items(), key=lambda x: x[1], reverse=True)
@@ -137,7 +134,7 @@ def search_res(inverted_title, inverted_body, inverted_anchor, query):
 
     # Return a list of tuples containing the document ID and its title
     result = [(doc_id, inverted_title.doc_id_title[doc_id]) for doc_id, _ in top_100_docs]
-
+    return result
 
 
 
