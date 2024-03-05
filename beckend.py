@@ -133,7 +133,7 @@ def search_res(inverted_title, inverted_body, inverted_anchor, query):
     top_100_docs = sorted_docs[:100]
 
     # Return a list of tuples containing the document ID and its title
-    result = [(doc_id, inverted_title.doc_id_title[doc_id]) for doc_id, _ in top_100_docs]
+    result = [(str(doc_id), inverted_title.doc_id_title[doc_id]) for doc_id, _ in top_100_docs]
     return result
 
 
