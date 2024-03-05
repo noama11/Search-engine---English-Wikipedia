@@ -127,7 +127,7 @@ def search_res(inverted_title, inverted_body, inverted_anchor, query):
         res_dict[doc_id] += score * 1/16
 
     for doc_id, score in score_anchor:
-        res_dict[doc_id] += 7/16
+        res_dict[doc_id] += score * 7/16
 
 
     sorted_docs = sorted(res_dict.items(), key=lambda x: x[1], reverse=True)
