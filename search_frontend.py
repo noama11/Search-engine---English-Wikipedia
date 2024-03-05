@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-from search_beckend import*
+from beckend import*
 from inverted_index_gcp import*
 
 
@@ -36,10 +36,10 @@ def search():
         return jsonify(res)
     # BEGIN SOLUTION
     idx_title = InvertedIndex.read_index("bucket_title", 'index_title', "207219783opt")
-    idx_body = InvertedIndex.read_index("bucket_body", 'index_body', "207219783opt")
-    idx_anchor = InvertedIndex.read_index("bucket_title", 'index_title', "207219783opt")
+    # idx_body = InvertedIndex.read_index("bucket_body", 'index_body', "207219783opt")
+    # idx_anchor = InvertedIndex.read_index("bucket_title", 'index_title', "207219783opt")
 
-    res = search(idx_title, idx_body, idx_anchor, query)
+    res = search_res(idx_title, idx_title, idx_title, query)
     # END SOLUTION
     return jsonify(res)
 
