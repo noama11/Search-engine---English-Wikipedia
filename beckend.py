@@ -72,7 +72,7 @@ def tokenize_stemming(text):
 
 
 def term_frequency(text, id):
-    tokens = [token.group() for token in RE_WORD.finditer(text.lower())]
+    tokens = tokenize_stemming(text)
     word_freq = {}
     for token in tokens:
         if token not in all_stopwords:
@@ -100,7 +100,7 @@ def cosine_similarity(query, index):
     index_df_list_keys = list(index.df.keys())
 
     for term in query_list_keys:
-      w_term_query = (query_dict[term][1]/len(query))* math.log2(index.N/index.df[term])
+      w_term_query = (query_dict[term][1]/len(query)) * math.log2(index.N/index.df[term])
 
       if term in index_df_list_keys:
         posting_list = index.read_a_posting_list(".", term, "noam209263805")
@@ -121,7 +121,7 @@ def cosine_similarity(query, index):
 
 
 def bm25_score(query, index):
-    bm_score = {}
+    bm_score = defaultdict(float)
     score = 0.0
     k1 = 1.5
     b = 0.75
@@ -143,7 +143,6 @@ def bm25_score(query, index):
 
 
 def search_title(query, index):
-
     dict_cosine_sim = defaultdict(float)
     query_dict = dict(term_frequency(query, 0))
     query_list_keys = list(query_dict.keys())
@@ -161,21 +160,34 @@ def search_title(query, index):
     return top_100_docs
 
 
-def search_anchor(inverted):
-    res = []
-    return res
+def search_anchor(query, index):
+    dict_cosine_sim = defaultdict(float)
+    query_dict = dict(term_frequency(query, 0))
+    query_list_keys = list(query_dict.keys())
+    index_df_list_keys = list(index.df.keys())
+
+    for term in query_list_keys:
+        if term in index_df_list_keys:
+            posting_list = index.read_a_posting_list(".", term, "noam209263805")
+            for doc_id, freq in posting_list:
+                dict_cosine_sim[doc_id] += freq
+
+    sorted_docs = sorted(dict_cosine_sim.items(), key=lambda x: x[1], reverse=True)
+    top_100_docs = sorted_docs[:100]
+
+    return top_100_docs
 
 
 def search_res(inverted_title, inverted_body, inverted_anchor, query):
     query_filtered = tokenize_stemming(query)
     if len(query_filtered) == 1:
-        score_title = search_title(query_filtered, inverted_title)
-        score_body = cosine_similarity(query_filtered, inverted_body)
-        # score_anchor = cosine_similarity(query_filtered, inverted_anchor)
+        score_title = search_title(query, inverted_title)
+        score_body = cosine_similarity(query, inverted_body)
+        score_anchor = search_anchor(query, inverted_anchor)
     if len(query_filtered) > 1:
-        score_title = search_title(query_filtered, inverted_title)
-        score_body = bm25_score(query_filtered, inverted_body)
-        # score_anchor = cosine_similarity(query_filtered, inverted_anchor)
+        score_title = search_title(query, inverted_title)
+        score_body = bm25_score(query, inverted_body)
+        score_anchor = search_anchor(query, inverted_anchor)
 
     res_dict = defaultdict(float)
     for doc_id, score in score_title:
@@ -184,8 +196,8 @@ def search_res(inverted_title, inverted_body, inverted_anchor, query):
     for doc_id, score in score_body:
         res_dict[doc_id] += score * 1/16
 
-    # for doc_id, score in score_anchor:
-    #     res_dict[doc_id] += 7/16
+    for doc_id, score in score_anchor:
+        res_dict[doc_id] += score * 7/16
 
 
     sorted_docs = sorted(res_dict.items(), key=lambda x: x[1], reverse=True)
