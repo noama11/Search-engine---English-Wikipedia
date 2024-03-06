@@ -81,11 +81,11 @@ def bm25_score(self, query, index):
     for term in query:
         for doc_id, freq in index.read_a_posting_list(".", term, bucket_name)
 
-        doc_len = index.doc_len[doc_id]
-        idf = log2(index.N / index.df[term])
-        numerator = idf * freq * (k1 + 1)
-        denominator = freq + k1 * (1 - b + b * doc_len / avg_doc_len)
-        score += (numerator / denominator)
+            doc_len = index.doc_len[doc_id]
+            idf = log2(index.N / index.df[term])
+            numerator = idf * freq * (k1 + 1)
+            denominator = freq + k1 * (1 - b + b * doc_len / avg_doc_len)
+            score += (numerator / denominator)
 
     return score
 
