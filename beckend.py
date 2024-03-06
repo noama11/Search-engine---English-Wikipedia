@@ -13,7 +13,7 @@ nltk.download('wordnet')
 # stop words
 english_stopwords = frozenset(stopwords.words('english'))
 corpus_stopwords = ['category', 'references', 'also', 'links', 'extenal', 'see', 'thumb', 'became', 'may']
-RE_WORD = re.compile(r"""[\#\@\w](['\-]?\w){2,24}""", re.UNICODE)
+RE_WORD = re.compile(r"""[\#\@\w\d](['\-]?\w){2,24}""", re.UNICODE)
 all_stopwords = english_stopwords.union(corpus_stopwords)
 
 
@@ -147,7 +147,7 @@ def search_title(query, index):
     query_dict = dict(term_frequency(query, 0))
     query_list_keys = list(query_dict.keys())
     index_df_list_keys = list(index.df.keys())
-
+    print(query_dict)
     for term in query_list_keys:
         if term in index_df_list_keys:
             posting_list = index.read_a_posting_list(".", term, "noam209263805")
@@ -194,7 +194,7 @@ def search_res(inverted_title, inverted_body, inverted_anchor, query):
         res_dict[doc_id] += score * 7/16
     
     for doc_id, score in score_body:
-        res_dict[doc_id] += score * 1/16
+        res_dict[doc_id] += score * 2/16
 
     for doc_id, score in score_anchor:
         res_dict[doc_id] += score * 7/16
