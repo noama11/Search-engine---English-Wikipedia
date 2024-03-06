@@ -75,7 +75,6 @@ def calculate_tf_idf(index, term, tf, doc_id):
 def bm25_score(self, query, index):
     score = 0.0
 
-    frequencies = self.tf_[index]
     k1 = 1.5
     b = 0.75
     avg_doc_len = 0
@@ -85,7 +84,7 @@ def bm25_score(self, query, index):
         doc_len = index.doc_len[doc_id]
         idf = log2(index.N / index.df[term])
         numerator = idf * freq * (k1 + 1)
-        denominator = freq + self.k1 * (1 - b + b * doc_len / avg_doc_len)
+        denominator = freq + k1 * (1 - b + b * doc_len / avg_doc_len)
         score += (numerator / denominator)
 
     return score
