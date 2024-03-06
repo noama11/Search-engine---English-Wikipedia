@@ -69,6 +69,28 @@ def calculate_tf_idf(index, term, tf, doc_id):
   tf_idf = (tf/index.doc_len[doc_id])* math.log2(index.N/index.df[term])
   return tf_idf
 
+
+# bm25 score 
+
+def bm25_score(self, query, index):
+    score = 0.0
+
+    frequencies = self.tf_[index]
+    k1 = 1.5
+    b = 0.75
+    avg_doc_len = 0
+    for term in query:
+        for doc_id, freq in index.read_a_posting_list(".", term, bucket_name)
+
+        doc_len = index.doc_len[doc_id]
+        idf = log2(index.N / index.df[term])
+        numerator = idf * freq * (k1 + 1)
+        denominator = freq + self.k1 * (1 - b + b * doc_len / avg_doc_len)
+        score += (numerator / denominator)
+
+    return score
+
+
 def cosine_similarity(query, index):
     """ Returns: {doc_id:cosine score} """
     dict_cosine_sim = {}
