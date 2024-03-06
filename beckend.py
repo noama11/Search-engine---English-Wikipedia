@@ -167,11 +167,27 @@ def cosine_similarity(query, index):
 #
 #     return dict(sorted(bm_score.items(), key=lambda x: x[1], reverse=True))
 
-###############3
+###############
 
-def search_title(inverted):
-    res = []
-    return res
+def search_title(query, index):
+
+    dict_cosine_sim = defaultdict(float)
+    query_dict = dict(term_frequency(query, 0))
+    query_list_keys = list(query_dict.keys())
+    index_df_list_keys = list(index.df.keys())
+
+    for term in query_list_keys:
+        w_term_query = query_dict[term][1] / len(query)
+
+        if term in index_df_list_keys:
+            posting_list = index.read_a_posting_list(".", term, "noam209263805")
+            for doc_id, freq in posting_list:
+                dict_cosine_sim[doc_id] += freq/index.doc_len[doc_id] * w_term_query
+
+    sorted_docs = sorted(dict_cosine_sim.items(), key=lambda x: x[1], reverse=True)
+    top_100_docs = sorted_docs[:100]
+
+    return top_100_docs
 
 def search_anchor(inverted):
     res = []
@@ -179,7 +195,8 @@ def search_anchor(inverted):
 
 
 def search_res(inverted_title, inverted_body, inverted_anchor, query):
-    score_title = cosine_similarity(query, inverted_title)
+    score_title = search_title(query, inverted_title)
+    # score_title = cosine_similarity(query, inverted_title)
     score_body = cosine_similarity(query, inverted_body)
     # score_anchor = cosine_similarity(query, inverted_anchor)
 
