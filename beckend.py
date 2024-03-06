@@ -150,12 +150,10 @@ def search_title(query, index):
     index_df_list_keys = list(index.df.keys())
 
     for term in query_list_keys:
-        w_term_query = query_dict[term][1] / len(query)
-
         if term in index_df_list_keys:
             posting_list = index.read_a_posting_list(".", term, "noam209263805")
             for doc_id, freq in posting_list:
-                dict_cosine_sim[doc_id] += freq/index.doc_len[doc_id] * w_term_query
+                dict_cosine_sim[doc_id] += freq/index.doc_len[doc_id]
 
     sorted_docs = sorted(dict_cosine_sim.items(), key=lambda x: x[1], reverse=True)
     top_100_docs = sorted_docs[:100]
