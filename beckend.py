@@ -17,53 +17,9 @@ RE_WORD = re.compile(r"""[\#\@\w\d](['\-]?\w){1,24}""", re.UNICODE)
 all_stopwords = english_stopwords.union(corpus_stopwords)
 
 
-######## new #######
-def query_expansion(query):
-    synonyms = {}
-    hyponyms = {}
-
-    for word in query:
-        word_synsets = wordnet.synsets(word)
-        for synset in word_synsets:
-            syn = synset.lemmas()[0].name().lower()
-            if syn and syn != word:
-                synonyms[word] = syn
-                break
-
-    for word in query:
-        word_synsets = wordnet.synsets(word)
-        for synset in word_synsets:
-            try:
-                hyp = synset.hyponyms()[0].name()
-                word_synset = wordnet.synset(hyp)
-                hypernyms = word_synset.hypernyms()
-                lst = ([synset.name().split(".")[0] for synset in hypernyms])
-                h = lst[0].lower()
-                if h != word:
-                    hyponyms[word] = h
-            except:
-                pass
-    for _, val in synonyms.items():
-        if val not in query:
-            query.append(val)
-    for _, val in hyponyms.items():
-        if val not in query:
-            query.append(val)
-
-    return query
-
-
-######## new #######
-
 def tokenize_stemming(text):
     list_token = []
     tokens = [token.group() for token in RE_WORD.finditer(text.lower())]
-
-    # ######
-    # if(query_exp):
-    #     tokens = query_expansion(tokens)
-    # ######
-
     stemmer = PorterStemmer()
     for token in tokens:
         if token not in english_stopwords:
@@ -84,7 +40,7 @@ def term_frequency(text, id):
     return lst_tuples
 
 
-##### nirmul ####
+##### normalizion ####
 # helper for normalized the score of anchor text
 def min_max_normalize(dictionary):
     min_value = min(dictionary.values())
@@ -97,9 +53,7 @@ def min_max_normalize(dictionary):
         dictionary[key] = (dictionary[key] - min_value) / denominator
 
     return dictionary
-
-
-#################
+#####################
 
 # weight = tf*idf
 def calculate_tf_idf(index, term, tf):
@@ -108,7 +62,6 @@ def calculate_tf_idf(index, term, tf):
 
 
 def cosine_similarity(query, index):
-    """ Returns: {doc_id:cosine score} """
     dict_cosine_sim = defaultdict(float)
     query_dict = dict(term_frequency(query, 0))
     query_list_keys = list(query_dict.keys())
@@ -124,11 +77,10 @@ def cosine_similarity(query, index):
                 w_term_doc = calculate_tf_idf(index, term, freq / index.doc_len[doc_id])
                 dict_cosine_sim[doc_id] += (w_term_doc) * (w_term_query)
 
-    if (index == "body"):
-        for doc_id in list(dict_cosine_sim.keys()):
-            Word_doc_id__weight = index.norm[doc_id]
-            dict_cosine_sim[doc_id] /= (
-                math.sqrt(pybuiltins.sum(value[1] ** 2 for value in query_list_values) * Word_doc_id__weight))
+    for doc_id in list(dict_cosine_sim.keys()):
+        Word_doc_id__weight = index.norm[doc_id]
+        dict_cosine_sim[doc_id] /= (
+            math.sqrt(pybuiltins.sum(value[1] ** 2 for value in query_list_values) * Word_doc_id__weight))
 
     sorted_docs = sorted(dict_cosine_sim.items(), key=lambda x: x[1], reverse=True)
     top_100_docs = sorted_docs[:100]
@@ -156,14 +108,12 @@ def bm25_score(query, index):
 
     sorted_docs = sorted(dict_bm25_score_normalized.items(), key=lambda x: x[1], reverse=True)
     top_100_docs = sorted_docs[:100]
-
     return top_100_docs
 
 
 # if ngram == true -> do title_2_words
 # if ngram == false -> do title_1
 def search_title(query, index, ngram=False):
-
     dict_cosine_sim = defaultdict(float)
     query_dict = dict(term_frequency(query, 0))
     query_list_keys = list(query_dict.keys())
