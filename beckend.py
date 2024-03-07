@@ -7,8 +7,8 @@ from nltk.corpus import stopwords
 from inverted_index_gcp import *
 from nltk.stem.porter import *
 from nltk.corpus import wordnet
-nltk.download('wordnet')
 
+nltk.download('wordnet')
 
 # stop words
 english_stopwords = frozenset(stopwords.words('english'))
@@ -83,6 +83,7 @@ def term_frequency(text, id):
     lst_tuples = [(token, (id, freq)) for token, freq in word_freq.items()]
     return lst_tuples
 
+
 ##### nirmul ####
 # helper for normalized the score of anchor text
 def min_max_normalize(dictionary):
@@ -93,15 +94,17 @@ def min_max_normalize(dictionary):
         return dictionary
 
     for key in dictionary:
-      dictionary[key] = (dictionary[key] - min_value) / denominator
+        dictionary[key] = (dictionary[key] - min_value) / denominator
 
     return dictionary
+
+
 #################
 
 # weight = tf*idf
 def calculate_tf_idf(index, term, tf):
-  tf_idf = tf* (math.log2(index.N/index.df[term]))
-  return tf_idf
+    tf_idf = tf * (math.log2(index.N / index.df[term]))
+    return tf_idf
 
 
 def cosine_similarity(query, index):
@@ -113,13 +116,13 @@ def cosine_similarity(query, index):
     index_df_list_keys = list(index.df.keys())
 
     for term in query_list_keys:
-      w_term_query = (query_dict[term][1]/len(query)) * math.log2(index.N/index.df[term])
+        w_term_query = (query_dict[term][1] / len(query)) * math.log2(index.N / index.df[term])
 
-      if term in index_df_list_keys:
-        posting_list = index.read_a_posting_list(".", term, "noam209263805")
-        for doc_id, freq in posting_list:  
-          w_term_doc = calculate_tf_idf(index, term, freq/index.doc_len[doc_id])
-          dict_cosine_sim[doc_id] += (w_term_doc)*(w_term_query)
+        if term in index_df_list_keys:
+            posting_list = index.read_a_posting_list(".", term, "noam209263805")
+            for doc_id, freq in posting_list:
+                w_term_doc = calculate_tf_idf(index, term, freq / index.doc_len[doc_id])
+                dict_cosine_sim[doc_id] += (w_term_doc) * (w_term_query)
 
     if (index == "body"):
         for doc_id in list(dict_cosine_sim.keys()):
@@ -131,12 +134,13 @@ def cosine_similarity(query, index):
     top_100_docs = sorted_docs[:100]
     return top_100_docs
 
+
 def bm25_score(query, index):
     bm_score = defaultdict(float)
     score = 0.0
     k1 = 1.5
     b = 0.75
-    avg_doc_len = 341.0890174848911    ## need to add a function!
+    avg_doc_len = 341.0890174848911  ## need to add a function!
     for term in query:
         posting_list = index.read_a_posting_list(".", term, "noam209263805")
         for doc_id, freq in posting_list:
@@ -155,6 +159,7 @@ def bm25_score(query, index):
 
     return top_100_docs
 
+
 def search_title(query, index):
     dict_cosine_sim = defaultdict(float)
     query_dict = dict(term_frequency(query, 0))
@@ -170,6 +175,7 @@ def search_title(query, index):
     sorted_docs = sorted(dict_cosine_sim.items(), key=lambda x: x[1], reverse=True)
     top_100_docs = sorted_docs[:100]
     return top_100_docs
+
 
 def search_anchor(query, index):
     dict_cosine_sim = defaultdict(float)
@@ -193,7 +199,6 @@ def search_anchor(query, index):
     return top_100_docs
 
 
-
 def search_res(inverted_title, inverted_body, inverted_anchor, query):
     query_filtered = tokenize_stemming(query)
     if len(query_filtered) == 1:
@@ -207,14 +212,13 @@ def search_res(inverted_title, inverted_body, inverted_anchor, query):
 
     res_dict = defaultdict(float)
     for doc_id, score in score_title:
-        res_dict[doc_id] += score * 7/16
-    
+        res_dict[doc_id] += score * 13 / 16
+
     for doc_id, score in score_body:
-        res_dict[doc_id] += score * 2/16
+        res_dict[doc_id] += score * 1 / 16
 
     for doc_id, score in score_anchor:
-        res_dict[doc_id] += score * 7/16
-
+        res_dict[doc_id] += score * 2 / 16
 
     sorted_docs = sorted(res_dict.items(), key=lambda x: x[1], reverse=True)
     top_100_docs = sorted_docs[:100]
