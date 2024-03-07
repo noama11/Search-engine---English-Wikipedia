@@ -83,6 +83,20 @@ def term_frequency(text, id):
     lst_tuples = [(token, (id, freq)) for token, freq in word_freq.items()]
     return lst_tuples
 
+##### nirmul ####
+# helper for normalized the score of anchor text
+def min_max_normalize(dictionary):
+    min_value = min(dictionary.values())
+    max_value = max(dictionary.values())
+    denominator = max_value - min_value
+    if denominator == 0:
+        return dictionary
+
+    for key in dictionary:
+      dictionary[key] = (dictionary[key] - min_value) / denominator
+
+    return dictionary
+#################
 
 # weight = tf*idf
 def calculate_tf_idf(index, term, tf):
@@ -92,7 +106,6 @@ def calculate_tf_idf(index, term, tf):
 
 def cosine_similarity(query, index):
     """ Returns: {doc_id:cosine score} """
-
     dict_cosine_sim = defaultdict(float)
     query_dict = dict(term_frequency(query, 0))
     query_list_keys = list(query_dict.keys())
@@ -116,9 +129,7 @@ def cosine_similarity(query, index):
 
     sorted_docs = sorted(dict_cosine_sim.items(), key=lambda x: x[1], reverse=True)
     top_100_docs = sorted_docs[:100]
-
     return top_100_docs
-
 
 def bm25_score(query, index):
     bm_score = defaultdict(float)
@@ -134,49 +145,53 @@ def bm25_score(query, index):
             numerator = idf * freq * (k1 + 1)
             denominator = freq + k1 * (1 - b + b * doc_len / avg_doc_len)
             score += (numerator / denominator)
-
             bm_score[doc_id] += score
 
-    sorted_docs = sorted(bm_score.items(), key=lambda x: x[1], reverse=True)
-    top_100_docs = sorted_docs[:100]
-    return top_100_docs
+    # Normalize the values in dict_cosine_sim
+    dict_bm25_score_normalized = min_max_normalize(bm25_score)
 
+    sorted_docs = sorted(dict_bm25_score_normalized.items(), key=lambda x: x[1], reverse=True)
+    top_100_docs = sorted_docs[:100]
+
+    return top_100_docs
 
 def search_title(query, index):
     dict_cosine_sim = defaultdict(float)
     query_dict = dict(term_frequency(query, 0))
     query_list_keys = list(query_dict.keys())
     index_df_list_keys = list(index.df.keys())
-    print(query_dict)
     for term in query_list_keys:
         if term in index_df_list_keys:
             posting_list = index.read_a_posting_list(".", term, "noam209263805")
             for doc_id, freq in posting_list:
-                dict_cosine_sim[doc_id] += freq/index.doc_len[doc_id]
-                # dict_cosine_sim[doc_id] += freq
+                x = re.sub(r'[^\w]', ' ', index.doc_id_title[doc_id]).split(" ")
+                dict_cosine_sim[doc_id] += freq / len(x)
 
     sorted_docs = sorted(dict_cosine_sim.items(), key=lambda x: x[1], reverse=True)
     top_100_docs = sorted_docs[:100]
-
     return top_100_docs
-
 
 def search_anchor(query, index):
     dict_cosine_sim = defaultdict(float)
     query_dict = dict(term_frequency(query, 0))
-    query_list_keys = list(query_dict.keys())
-    index_df_list_keys = list(index.df.keys())
+    query_terms_set = set(query_dict.keys())
+    index_df_set = set(index.df.keys())
 
-    for term in query_list_keys:
-        if term in index_df_list_keys:
-            posting_list = index.read_a_posting_list(".", term, "noam209263805")
-            for doc_id, freq in posting_list:
-                dict_cosine_sim[doc_id] += freq
+    # Only process terms that exist in both the query and index
+    common_terms = query_terms_set.intersection(index_df_set)
+    for term in common_terms:
+        posting_list = index.read_a_posting_list(".", term, "noam209263805")
+        for doc_id, freq in posting_list:
+            dict_cosine_sim[doc_id] += freq
 
-    sorted_docs = sorted(dict_cosine_sim.items(), key=lambda x: x[1], reverse=True)
+    # Normalize the values in dict_cosine_sim
+    dict_cosine_sim_normalized = min_max_normalize(dict_cosine_sim)
+
+    # Sort and select the top 100 documents
+    sorted_docs = sorted(dict_cosine_sim_normalized.items(), key=lambda x: x[1], reverse=True)
     top_100_docs = sorted_docs[:100]
-
     return top_100_docs
+
 
 
 def search_res(inverted_title, inverted_body, inverted_anchor, query):
