@@ -160,17 +160,32 @@ def bm25_score(query, index):
     return top_100_docs
 
 
-def search_title(query, index):
+# if ngram == true -> do title_2_words
+# if ngram == false -> do title_1
+def search_title(query, index, ngram=False):
+
     dict_cosine_sim = defaultdict(float)
     query_dict = dict(term_frequency(query, 0))
     query_list_keys = list(query_dict.keys())
     index_df_list_keys = list(index.df.keys())
-    for term in query_list_keys:
-        if term in index_df_list_keys:
-            posting_list = index.read_a_posting_list(".", term, "noam209263805")
-            for doc_id, freq in posting_list:
-                x = re.sub(r'[^\w]', ' ', index.doc_id_title[doc_id]).split(" ")
-                dict_cosine_sim[doc_id] += freq / len(x)
+
+    if not ngram:
+        for term in query_list_keys:
+            if term in index_df_list_keys:
+                posting_list = index.read_a_posting_list(".", term, "noam209263805")
+                for doc_id, freq in posting_list:
+                    x = re.sub(r'[^\w]', ' ', index.doc_id_title[doc_id]).split(" ")
+                    dict_cosine_sim[doc_id] += freq / len(x)
+    else:
+        for i, term in enumerate(query_list_keys):
+            if i == (len(query_list_keys) - 1):
+                break
+
+            if term in index_df_list_keys:
+                posting_list = index.read_a_posting_list(".", query_list_keys[i] + " " + query_list_keys[i+1], "noam209263805")
+                for doc_id, freq in posting_list:
+                    x = re.sub(r'[^\w]', ' ', index.doc_id_title[doc_id]).split(" ")
+                    dict_cosine_sim[doc_id] += freq / len(x)
 
     sorted_docs = sorted(dict_cosine_sim.items(), key=lambda x: x[1], reverse=True)
     top_100_docs = sorted_docs[:100]
@@ -199,14 +214,14 @@ def search_anchor(query, index):
     return top_100_docs
 
 
-def search_res(inverted_title, inverted_body, inverted_anchor, query):
+def search_res(inverted_title, inverted_title_2_words, inverted_body, inverted_anchor, query):
     query_filtered = tokenize_stemming(query)
     if len(query_filtered) == 1:
         score_title = search_title(query, inverted_title)
         score_body = cosine_similarity(query, inverted_body)
         score_anchor = search_anchor(query, inverted_anchor)
     if len(query_filtered) > 1:
-        score_title = search_title(query, inverted_title)
+        score_title = search_title(query, inverted_title_2_words, ngram=True)
         score_body = bm25_score(query, inverted_body)
         score_anchor = search_anchor(query, inverted_anchor)
 
