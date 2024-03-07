@@ -13,7 +13,7 @@ nltk.download('wordnet')
 # stop words
 english_stopwords = frozenset(stopwords.words('english'))
 corpus_stopwords = ['category', 'references', 'also', 'links', 'extenal', 'see', 'thumb', 'became', 'may']
-RE_WORD = re.compile(r"""[\#\@\w\d](['\-]?\w){2,24}""", re.UNICODE)
+RE_WORD = re.compile(r"""[\#\@\w\d](['\-]?\w){1,24}""", re.UNICODE)
 all_stopwords = english_stopwords.union(corpus_stopwords)
 
 
@@ -153,6 +153,7 @@ def search_title(query, index):
             posting_list = index.read_a_posting_list(".", term, "noam209263805")
             for doc_id, freq in posting_list:
                 dict_cosine_sim[doc_id] += freq/index.doc_len[doc_id]
+                # dict_cosine_sim[doc_id] += freq
 
     sorted_docs = sorted(dict_cosine_sim.items(), key=lambda x: x[1], reverse=True)
     top_100_docs = sorted_docs[:100]
