@@ -16,6 +16,9 @@ app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
 
 idx_title = InvertedIndex.read_index("bucket_title", 'index_title', "noam209263805")
 idx_body = InvertedIndex.read_index("bucket_body", 'index_body', "noam209263805")
+idx_anchor = InvertedIndex.read_index("bucket_anchor_3D", 'index_anchor_3D', "noam209263805")
+idx_title2 = InvertedIndex.read_index("bucket_title_2_words", 'index_title_2_words', "noam209263805")
+
 
 @app.route("/search")
 def search():
@@ -41,7 +44,7 @@ def search():
         if len(query) == 0:
             return jsonify(res)
         # BEGIN SOLUTION
-        res = search_res(idx_title, idx_body, idx_title, query)
+        res = search_res(idx_title2, idx_body, idx_anchor, query)
         # END SOLUTION
         return jsonify(res)
     except Exception as e:
