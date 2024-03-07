@@ -152,7 +152,7 @@ def bm25_score(query, index):
             bm_score[doc_id] += score
 
     # Normalize the values in dict_cosine_sim
-    dict_bm25_score_normalized = min_max_normalize(bm25_score)
+    dict_bm25_score_normalized = min_max_normalize(bm_score)
 
     sorted_docs = sorted(dict_bm25_score_normalized.items(), key=lambda x: x[1], reverse=True)
     top_100_docs = sorted_docs[:100]
