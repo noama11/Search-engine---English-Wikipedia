@@ -113,13 +113,14 @@ def bm25_score(query, index):
 
 # if ngram == true -> do title_2_words
 # if ngram == false -> do title_1
-def search_title(query, index, ngram=False):
+def search_title(query, index, index_2, ngram=False):
     dict_cosine_sim = defaultdict(float)
     query_dict = dict(term_frequency(query, 0))
     query_list_keys = list(query_dict.keys())
-    index_df_list_keys = list(index.df.keys())
+    # index_df_list_keys = list(index.df.keys())
 
     if not ngram:
+        index_df_list_keys = list(index.df.keys())
         for term in query_list_keys:
             if term in index_df_list_keys:
                 posting_list = index.read_a_posting_list(".", term, "noam209263805")
@@ -127,12 +128,13 @@ def search_title(query, index, ngram=False):
                     x = re.sub(r'[^\w]', ' ', index.doc_id_title[doc_id]).split(" ")
                     dict_cosine_sim[doc_id] += freq / len(x)
     else:
+        index_df_list_keys = list(index_2.df.keys())
         for i, term in enumerate(query_list_keys):
             if i == (len(query_list_keys) - 1):
                 break
-
-            if term in index_df_list_keys:
-                posting_list = index.read_a_posting_list(".", query_list_keys[i] + " " + query_list_keys[i+1], "noam209263805")
+            two_word_query = query_list_keys[i] + " " + query_list_keys[i + 1]
+            if two_word_query in index_df_list_keys:
+                posting_list = index_2.read_a_posting_list(".", two_word_query, "noam209263805")
                 for doc_id, freq in posting_list:
                     x = re.sub(r'[^\w]', ' ', index.doc_id_title[doc_id]).split(" ")
                     dict_cosine_sim[doc_id] += freq / len(x)
@@ -166,24 +168,24 @@ def search_anchor(query, index):
 
 def search_res(inverted_title, inverted_title_2_words, inverted_body, inverted_anchor, query):
     query_filtered = tokenize_stemming(query)
-    if len(query_filtered) == 1:
-        score_title = search_title(query, inverted_title)
-        score_body = cosine_similarity(query, inverted_body)
-        score_anchor = search_anchor(query, inverted_anchor)
-    if len(query_filtered) > 1:
-        score_title = search_title(query, inverted_title_2_words, ngram=True)
-        score_body = bm25_score(query, inverted_body)
-        score_anchor = search_anchor(query, inverted_anchor)
-
     res_dict = defaultdict(float)
-    for doc_id, score in score_title:
-        res_dict[doc_id] += score * 13 / 16
 
-    for doc_id, score in score_body:
-        res_dict[doc_id] += score * 1 / 16
+    if len(query_filtered) == 1:
+        res_dict = score_one_word(inverted_title, inverted_body, inverted_title_2_words, inverted_anchor, query)
 
-    for doc_id, score in score_anchor:
-        res_dict[doc_id] += score * 2 / 16
+    if len(query_filtered) > 1:
+        score_dic_res = score2(inverted_title, inverted_body, inverted_title_2_words, inverted_anchor, query)
+        score_title_2_ngrams = search_title(query, inverted_title, inverted_title_2_words, ngram=True)
+
+        for doc_id, score in score_dic_res:
+            res_dict[doc_id] += score * 2/6
+
+        for doc_id, score in score_title_2_ngrams:
+            res_dict[doc_id] += score * 4/6
+
+    # for doc_id, score in page_rank:
+    #     res_dict[doc_id] += score
+
 
     sorted_docs = sorted(res_dict.items(), key=lambda x: x[1], reverse=True)
     top_100_docs = sorted_docs[:100]
@@ -192,3 +194,41 @@ def search_res(inverted_title, inverted_title_2_words, inverted_body, inverted_a
     result = [(str(doc_id), inverted_title.doc_id_title[doc_id]) for doc_id, _ in top_100_docs]
     return result
 
+
+# hepler functions for search_res
+# query len = 1
+def score_one_word(inverted_title, inverted_body, inverted_title_2_words, inverted_anchor, query):
+    score_title = search_title(query, inverted_title, inverted_title_2_words, ngram=False)
+    score_body = cosine_similarity(query, inverted_body)
+    score_anchor = search_anchor(query, inverted_anchor)
+
+    res_dict = defaultdict(float)
+    for doc_id, score in score_title:
+        res_dict[doc_id] += score * 7 / 16
+
+    for doc_id, score in score_body:
+        res_dict[doc_id] += score * 2 / 16
+
+    for doc_id, score in score_anchor:
+        res_dict[doc_id] += score * 7 / 16
+
+    return res_dict
+
+
+# n gram = false -> title1
+def score2(inverted_title, inverted_body, inverted_title_2_words, inverted_anchor, query):
+    score_title = search_title(query, inverted_title, inverted_title_2_words, ngram=False)
+    score_body = bm25_score(query, inverted_body)
+    score_anchor = search_anchor(query, inverted_anchor)
+
+    res_dict = defaultdict(float)
+    for doc_id, score in score_title:
+        res_dict[doc_id] += score * 7 / 16
+
+    for doc_id, score in score_body:
+        res_dict[doc_id] += score * 2 / 16
+
+    for doc_id, score in score_anchor:
+        res_dict[doc_id] += score * 7 / 16
+
+    return res_dict
