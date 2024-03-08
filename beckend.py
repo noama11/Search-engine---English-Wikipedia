@@ -142,8 +142,7 @@ def search_title(query, index, index_2, ngram=False):
     sorted_docs = sorted(dict_cosine_sim.items(), key=lambda x: x[1], reverse=True)
     top_100_docs = sorted_docs[:100]
     return top_100_docs
-
-
+    
 def search_anchor(query, index):
     dict_cosine_sim = defaultdict(float)
     query_dict = dict(term_frequency(query, 0))
@@ -176,19 +175,19 @@ def search_res(inverted_title, inverted_title_2_words, inverted_body, inverted_a
     if len(query_filtered) > 1:
         score_dic_res = score2(inverted_title, inverted_body, inverted_title_2_words, inverted_anchor, query)
         score_title_2_ngrams = search_title(query, inverted_title, inverted_title_2_words, ngram=True)
-
+        
         for doc_id, score in score_dic_res.items():
-            res_dict[doc_id] += score * 2/6
+            res_dict[doc_id] += score * 1/6
 
         for doc_id, score in score_title_2_ngrams:
-            res_dict[doc_id] += score * 4/6
+            res_dict[doc_id] += score * 5/6
 
     # for doc_id, score in page_rank:
     #     res_dict[doc_id] += score
 
 
     sorted_docs = sorted(res_dict.items(), key=lambda x: x[1], reverse=True)
-    top_100_docs = sorted_docs[:100]
+    top_100_docs = sorted_docs[:60]
 
     # Return a list of tuples containing the document ID and its title
     result = [(str(doc_id), inverted_title.doc_id_title[doc_id]) for doc_id, _ in top_100_docs]
