@@ -2,6 +2,8 @@ from flask import Flask, request, jsonify
 from beckend import*
 from inverted_index_gcp import*
 import logging
+from google.cloud import storage
+import math
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -13,11 +15,20 @@ class MyFlaskApp(Flask):
 app = MyFlaskApp(__name__)
 app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
 
-
+# load index
 idx_title = InvertedIndex.read_index("bucket_title", 'index_title', "noam209263805")
 idx_body = InvertedIndex.read_index("bucket_body", 'index_body', "noam209263805")
 idx_anchor = InvertedIndex.read_index("bucket_anchor_3D", 'index_anchor_3D', "noam209263805")
-idx_title_2_words = InvertedIndex.read_index("bucket_title_2_words", 'index_title_2_words', "noam209263805")
+idx_title_2_words = InvertedIndex.read_index("bucket_title_2_words_filter_1", 'index_title_2_words_filter_1', "noam209263805")
+
+# load page rank
+storage_client = storage.Client()
+bucket = storage_client.bucket('noam209263805')
+blob = bucket.blob('page_rank/page_rank_norm_max_value.pkl')
+# blob = bucket.blob('page_rank/page_rank_norm_log2.pkl')
+contents = blob.download_as_bytes()
+page_rank = pickle.loads(contents)
+
 
 
 @app.route("/search")
@@ -44,7 +55,7 @@ def search():
         if len(query) == 0:
             return jsonify(res)
         # BEGIN SOLUTION
-        res = search_res(idx_title, idx_title_2_words, idx_body, idx_anchor, query)
+        res = search_res(idx_title, idx_title_2_words, idx_body, idx_anchor, page_rank, query)
         # END SOLUTION
         return jsonify(res)
     except Exception as e:
