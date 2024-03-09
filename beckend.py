@@ -111,6 +111,10 @@ def bm25_score(query, index):
     return top_100_docs
 
 
+def generate_word_2grams(words):
+    return {' '.join(words[i:i+2]) for i in range(len(words) - 1)}
+ 
+
 # if ngram == true -> do title_2_words
 # if ngram == false -> do title_1
 def search_title(query, index, index_2, ngram=False):
@@ -129,16 +133,26 @@ def search_title(query, index, index_2, ngram=False):
                     dict_cosine_sim[doc_id] += freq / len(x)
     else:
         index_df_list_keys = list(index_2.df.keys())
-        for i, term in enumerate(query_list_keys):
-            if i == (len(query_list_keys) - 1):
-                break
-            two_word_query = query_list_keys[i] + " " + query_list_keys[i + 1]
+
+        query_clean = tokenize_stemming(query)
+        query_2gram_set = generate_word_2grams(query_clean)
+
+        for two_word_query in query_2gram_set:
             if two_word_query in index_df_list_keys:
                 posting_list = index_2.read_a_posting_list(".", two_word_query, "noam209263805")
                 for doc_id, freq in posting_list:
-                    x = re.sub(r'[^\w]', ' ', index.doc_id_title[doc_id]).split(" ")
-                    dict_cosine_sim[doc_id] += freq / len(x)
+                    # x = re.sub(r'[^\w]', ' ', index.doc_id_title[doc_id]).split(" ")
+                    
+                    words = tokenize_stemming(index.doc_id_title[doc_id])
+                    title_2gram_set = generate_word_2grams(words)
+                    
+                    jccard = freq / len(query_2gram_set.union(title_2gram_set))
+                    
+#                     print("doc id: " + str(doc_id) + ", title: " + str(words) + ", jaccard = " + str(jccard) + " / " + str(len(query_2gram_set.union(title_2gram_set))))
 
+
+                    dict_cosine_sim[doc_id] += jccard
+                    
     sorted_docs = sorted(dict_cosine_sim.items(), key=lambda x: x[1], reverse=True)
     top_100_docs = sorted_docs[:100]
     return top_100_docs
