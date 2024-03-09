@@ -53,8 +53,6 @@ def min_max_normalize(dictionary):
         dictionary[key] = (dictionary[key] - min_value) / denominator
 
     return dictionary
-
-
 #####################
 
 # weight = tf*idf
@@ -121,26 +119,27 @@ def generate_word_2grams(words):
 # if ngram == false -> do title_1
 def search_title(query, index, index_2, ngram=False):
     dict_cosine_sim = defaultdict(float)
-    # query_dict = dict(term_frequency(query, 0))
-    query_filtered_list = tokenize_stemming(query)
-    # query_list_keys = list(query_dict.keys())
+    query_dict = dict(term_frequency(query, 0))
+    query_list_keys = list(query_dict.keys())
     # index_df_list_keys = list(index.df.keys())
 
     if not ngram:
-        # index_df_list_keys = list(index.df.keys())
-        for term in query_filtered_list:
-            if term in index.df:
+        index_df_list_keys = list(index.df.keys())
+        for term in query_list_keys:
+            if term in index_df_list_keys:
                 posting_list = index.read_a_posting_list(".", term, "noam209263805")
                 for doc_id, freq in posting_list:
                     x = re.sub(r'[^\w]', ' ', index.doc_id_title[doc_id]).split(" ")
                     dict_cosine_sim[doc_id] += freq / len(x)
-    else:
-        # index_df_list_keys = list(index_2.df.keys())
 
-        query_2gram_set = generate_word_2grams(query_filtered_list)
+    else:
+        index_df_list_keys = list(index_2.df.keys())
+
+        query_clean = tokenize_stemming(query)
+        query_2gram_set = generate_word_2grams(query_clean)
 
         for two_word_query in query_2gram_set:
-            if two_word_query in index_2.df:
+            if two_word_query in index_df_list_keys:
                 posting_list = index_2.read_a_posting_list(".", two_word_query, "noam209263805")
                 for doc_id, freq in posting_list:
                     # x = re.sub(r'[^\w]', ' ', index.doc_id_title[doc_id]).split(" ")
@@ -150,7 +149,6 @@ def search_title(query, index, index_2, ngram=False):
 
                     jccard = freq / len(query_2gram_set.union(title_2gram_set))
 
-                    # print("doc id: " + str(doc_id) + ", title: " + str(words) + ", jaccard = " + str(jccard) + " / " + str(len(query_2gram_set.union(title_2gram_set))))
                     dict_cosine_sim[doc_id] += jccard
 
     sorted_docs = sorted(dict_cosine_sim.items(), key=lambda x: x[1], reverse=True)
@@ -160,18 +158,16 @@ def search_title(query, index, index_2, ngram=False):
 
 def search_anchor(query, index):
     dict_cosine_sim = defaultdict(float)
-    # query_dict = dict(term_frequency(query, 0))
-    # query_terms_set = set(query_dict.keys())
+    query_dict = dict(term_frequency(query, 0))
+    query_terms_set = set(query_dict.keys())
+    index_df_set = set(index.df.keys())
 
-    # index_df_set = set(index.df.keys())
-    query_list_clean = tokenize_stemming(query)
     # Only process terms that exist in both the query and index
-    # common_terms = query_terms_set.intersection(index_df_set)
-    for term in query_list_clean:
-        if term in index.df:
-            posting_list = index.read_a_posting_list(".", term, "noam209263805")
-            for doc_id, freq in posting_list:
-                dict_cosine_sim[doc_id] += freq
+    common_terms = query_terms_set.intersection(index_df_set)
+    for term in common_terms:
+        posting_list = index.read_a_posting_list(".", term, "noam209263805")
+        for doc_id, freq in posting_list:
+            dict_cosine_sim[doc_id] += freq
 
     # Normalize the values in dict_cosine_sim
     dict_cosine_sim_normalized = min_max_normalize(dict_cosine_sim)
@@ -183,6 +179,8 @@ def search_anchor(query, index):
 
 
 def search_res(inverted_title, inverted_title_2_words, inverted_body, inverted_anchor, query):
+    # query_dict = dict(term_frequency(query, 0))
+    # query_size = len(query_dict)
     query_filtered = tokenize_stemming(query)
     res_dict = defaultdict(float)
 
