@@ -1,7 +1,6 @@
 # IR-final-project <br />
-Authors: Tomer Katzav, Noam Cohen, Shay Herling <br /> <br />
+## Authors: Tomer Katzav, Noam Cohen, Shay Herling <br /> <br />
 
-# hii
 
 **Overview:**
 This project consists of several components aimed at building a search engine for Wikipedia documents. This project is about creating a search engine for the entire Wikipedia corpus, comprising over 6,300,000 documents.
