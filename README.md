@@ -10,7 +10,7 @@ This project consists of several components aimed at building a search engine fo
 - Tokenization & Stemming
 - Remove stopwords
 - Separated every page into 3 components: title, body, anchor text.
-- Created Inverted Index for Each component.
+  Created Inverted Index for Each component.
 
 **Evaluation Metrics:**
 - Precision@5: Number of relevant documents for a given query that are retrieved, divided by the number of retrieved documents.
