@@ -2,13 +2,13 @@ import math
 import re
 import builtins as pybuiltins
 from contextlib import closing
-import nltk
 from nltk.corpus import stopwords
 from inverted_index_gcp import *
 from nltk.stem.porter import *
 from nltk.corpus import wordnet
 
-nltk.download('wordnet')
+import nltk
+nltk.download('stopwords')
 
 # stop words
 english_stopwords = frozenset(stopwords.words('english'))
@@ -40,7 +40,6 @@ def term_frequency(text, id):
     return lst_tuples
 
 
-##### normalizion ####
 # helper for normalized the score of anchor text
 def min_max_normalize(dictionary):
     min_value = min(dictionary.values())
@@ -53,7 +52,29 @@ def min_max_normalize(dictionary):
         dictionary[key] = (dictionary[key] - min_value) / denominator
 
     return dictionary
-#####################
+
+
+
+def min_max_list(scores):
+    # Extract the scores
+    values = [score for _, score in scores]
+    # print(values)
+    # Get the maximum and minimum scores
+    max_score = max(values)
+    min_score = min(values)
+
+    # Avoid division by zero
+    if max_score == min_score:
+        return [(doc_id, 0) for doc_id, _ in scores]
+
+    # Normalize the scores
+    normalized_scores = [
+        (doc_id, (score - min_score) / (max_score - min_score))
+        for doc_id, score in scores
+    ]
+
+    return normalized_scores
+
 
 # weight = tf*idf
 def calculate_tf_idf(index, term, tf):
@@ -84,31 +105,33 @@ def cosine_similarity(query, index):
 
     sorted_docs = sorted(dict_cosine_sim.items(), key=lambda x: x[1], reverse=True)
     top_100_docs = sorted_docs[:100]
-    return top_100_docs
+    top_100_norm = min_max_list(top_100_docs)
+
+    return top_100_norm
 
 
 def bm25_score(query, index):
-    bm_score = defaultdict(float)
-    score = 0.0
-    k1 = 1.5
-    b = 0.75
-    avg_doc_len = 341.0890174848911  ## need to add a function!
-    for term in query:
-        posting_list = index.read_a_posting_list(".", term, "noam209263805")
-        for doc_id, freq in posting_list:
-            doc_len = index.doc_len[doc_id]
-            idf = math.log2(index.N / index.df[term])
-            numerator = idf * freq * (k1 + 1)
-            denominator = freq + k1 * (1 - b + b * doc_len / avg_doc_len)
-            score += (numerator / denominator)
-            bm_score[doc_id] += score
+    doc_BM25_value = defaultdict(float)
+    query = tokenize_stemming(query)
+    K = 1.5
+    B = 0.75
+    AVGDL = 341.0890174848911
 
-    # Normalize the values in dict_cosine_sim
-    dict_bm25_score_normalized = min_max_normalize(bm_score)
+    for token in query:
+        token_df = index.df[token]
+        token_idf = math.log2(index.N / token_df)
 
-    sorted_docs = sorted(dict_bm25_score_normalized.items(), key=lambda x: x[1], reverse=True)
+        posting_list = index.read_a_posting_list(".", token, "noam209263805")
+        for page_id, word_freq in posting_list:
+            numerator = word_freq * (K + 1)
+            denominator = word_freq + K * (1 - B + (B * index.doc_len[page_id]) / AVGDL)
+            doc_BM25_value[page_id] += token_idf * (numerator / denominator)
+
+    sorted_docs = sorted(doc_BM25_value.items(), key=lambda x: x[1], reverse=True)
     top_100_docs = sorted_docs[:100]
-    return top_100_docs
+    top_100_norm = min_max_list(top_100_docs)
+
+    return top_100_norm
 
 
 def generate_word_2grams(words):
@@ -119,68 +142,104 @@ def generate_word_2grams(words):
 # if ngram == false -> do title_1
 def search_title(query, index, index_2, ngram=False):
     dict_cosine_sim = defaultdict(float)
-    query_dict = dict(term_frequency(query, 0))
-    query_list_keys = list(query_dict.keys())
-    # index_df_list_keys = list(index.df.keys())
+    query_filtered_list = tokenize_stemming(query)
 
     if not ngram:
-        index_df_list_keys = list(index.df.keys())
-        for term in query_list_keys:
-            if term in index_df_list_keys:
+        for term in query_filtered_list:
+            if term in index.df:
                 posting_list = index.read_a_posting_list(".", term, "noam209263805")
                 for doc_id, freq in posting_list:
                     x = re.sub(r'[^\w]', ' ', index.doc_id_title[doc_id]).split(" ")
                     dict_cosine_sim[doc_id] += freq / len(x)
-
     else:
-        index_df_list_keys = list(index_2.df.keys())
-
-        query_clean = tokenize_stemming(query)
-        query_2gram_set = generate_word_2grams(query_clean)
+        query_2gram_set = generate_word_2grams(query_filtered_list)
 
         for two_word_query in query_2gram_set:
-            if two_word_query in index_df_list_keys:
+            if two_word_query in index_2.df:
                 posting_list = index_2.read_a_posting_list(".", two_word_query, "noam209263805")
                 for doc_id, freq in posting_list:
-                    # x = re.sub(r'[^\w]', ' ', index.doc_id_title[doc_id]).split(" ")
-
                     words = tokenize_stemming(index.doc_id_title[doc_id])
                     title_2gram_set = generate_word_2grams(words)
-
                     jccard = freq / len(query_2gram_set.union(title_2gram_set))
-
                     dict_cosine_sim[doc_id] += jccard
-
+    if not dict_cosine_sim:
+      return []
     sorted_docs = sorted(dict_cosine_sim.items(), key=lambda x: x[1], reverse=True)
     top_100_docs = sorted_docs[:100]
-    return top_100_docs
+    top_100_norm = min_max_list(top_100_docs)
+
+    return top_100_norm
 
 
 def search_anchor(query, index):
     dict_cosine_sim = defaultdict(float)
-    query_dict = dict(term_frequency(query, 0))
-    query_terms_set = set(query_dict.keys())
-    index_df_set = set(index.df.keys())
+    query_list_clean = tokenize_stemming(query)
+    for term in query_list_clean:
+        if term in index.df:
+            posting_list = index.read_a_posting_list(".", term, "noam209263805")
+            for doc_id, freq in posting_list:
+                dict_cosine_sim[doc_id] += freq
 
-    # Only process terms that exist in both the query and index
-    common_terms = query_terms_set.intersection(index_df_set)
-    for term in common_terms:
-        posting_list = index.read_a_posting_list(".", term, "noam209263805")
-        for doc_id, freq in posting_list:
-            dict_cosine_sim[doc_id] += freq
-
-    # Normalize the values in dict_cosine_sim
-    dict_cosine_sim_normalized = min_max_normalize(dict_cosine_sim)
-
-    # Sort and select the top 100 documents
-    sorted_docs = sorted(dict_cosine_sim_normalized.items(), key=lambda x: x[1], reverse=True)
+    if not dict_cosine_sim:
+      return []
+    sorted_docs = sorted(dict_cosine_sim.items(), key=lambda x: x[1], reverse=True)
     top_100_docs = sorted_docs[:100]
-    return top_100_docs
+    top_100_norm = min_max_list(top_100_docs)
+    return top_100_norm
 
 
-def search_res(inverted_title, inverted_title_2_words, inverted_body, inverted_anchor, query):
-    # query_dict = dict(term_frequency(query, 0))
-    # query_size = len(query_dict)
+
+
+def min_max_body_2(scores):
+    # Extract the values to be normalized
+    values = [score[0] for _, score in scores]
+
+    # Get the maximum and minimum values
+    max_score = max(values)
+    min_score = min(values)
+
+    # Avoid division by zero
+    if max_score == min_score:
+        return [(doc_id, (0, tf)) for doc_id, (_, tf) in scores]
+
+    # Normalize the values
+    normalized_scores = [
+        (doc_id, ((value - min_score) / (max_score - min_score), tf))
+        for doc_id, (value, tf) in scores
+    ]
+
+    return normalized_scores
+
+
+def search_body_2(query, index_body1, index_body2):
+    dict_of_tuples = defaultdict(lambda: (0, 0))
+    query_filtered_list = tokenize_stemming(query)
+    query_2gram_set = generate_word_2grams(query_filtered_list)
+
+    for two_word_query in query_2gram_set:
+        if two_word_query in index_body2.df:
+            posting_list = index_body2.read_a_posting_list(".", two_word_query, "noam209263805")
+            for doc_id, freq in posting_list:
+                jccard = freq / index_body1.doc_len[doc_id]
+
+                current_tuple = dict_of_tuples[doc_id]  # Retrieve the current tuple
+                new_tuple = (current_tuple[0] + jccard, current_tuple[1] + 1)  # Modify the tuple
+                dict_of_tuples[doc_id] = new_tuple  # Update the dictionary
+
+    if not dict_of_tuples:
+      return []
+    # Sorting the top 200 tuples according to sequence count
+    sorted_docs = sorted(dict_of_tuples.items(), key=lambda x: x[1][1], reverse=True)
+    top_200_docs = sorted_docs[:200]
+
+    # Sorting the top 100 tuples according to TF
+    top_100_tf_sorted = sorted(top_200_docs, key=lambda x: x[1][0], reverse=True)[:100]
+
+    top_100_norm = min_max_body_2(top_100_tf_sorted)
+    return top_100_norm
+
+
+def search_res(inverted_title, inverted_title_2_words, inverted_body, inverted_body_2_words, inverted_anchor, query):
     query_filtered = tokenize_stemming(query)
     res_dict = defaultdict(float)
 
@@ -190,15 +249,17 @@ def search_res(inverted_title, inverted_title_2_words, inverted_body, inverted_a
     if len(query_filtered) > 1:
         score_dic_res = score2(inverted_title, inverted_body, inverted_title_2_words, inverted_anchor, query)
         score_title_2_ngrams = search_title(query, inverted_title, inverted_title_2_words, ngram=True)
+        score_body_2_ngrams = search_body_2(query, inverted_body, inverted_body_2_words)
 
         for doc_id, score in score_dic_res.items():
-            res_dict[doc_id] += score * 1 / 6
+            res_dict[doc_id] += score * 1/10
 
         for doc_id, score in score_title_2_ngrams:
-            res_dict[doc_id] += score * 5 / 6
+            res_dict[doc_id] += score * 9/10
 
-    # for doc_id, score in page_rank:
-    #     res_dict[doc_id] += score
+        for doc_id, score in score_body_2_ngrams:
+            res_dict[doc_id] += 2/10
+
 
     sorted_docs = sorted(res_dict.items(), key=lambda x: x[1], reverse=True)
     top_100_docs = sorted_docs[:60]
@@ -212,18 +273,14 @@ def search_res(inverted_title, inverted_title_2_words, inverted_body, inverted_a
 # query len = 1
 def score_one_word(inverted_title, inverted_body, inverted_title_2_words, inverted_anchor, query):
     score_title = search_title(query, inverted_title, inverted_title_2_words, ngram=False)
-    score_body = cosine_similarity(query, inverted_body)
     score_anchor = search_anchor(query, inverted_anchor)
 
     res_dict = defaultdict(float)
     for doc_id, score in score_title:
-        res_dict[doc_id] += score * 7 / 16
-
-    for doc_id, score in score_body:
-        res_dict[doc_id] += score * 2 / 16
+        res_dict[doc_id] += score * 12/20
 
     for doc_id, score in score_anchor:
-        res_dict[doc_id] += score * 7 / 16
+        res_dict[doc_id] += score * 8/20
 
     return res_dict
 
@@ -233,8 +290,8 @@ def score2(inverted_title, inverted_body, inverted_title_2_words, inverted_ancho
     score_title = search_title(query, inverted_title, inverted_title_2_words, ngram=False)
     score_body = bm25_score(query, inverted_body)
     score_anchor = search_anchor(query, inverted_anchor)
-
     res_dict = defaultdict(float)
+
     for doc_id, score in score_title:
         res_dict[doc_id] += score * 7 / 16
 
