@@ -58,7 +58,7 @@ def min_max_normalize(dictionary):
 def min_max_list(scores):
     # Extract the scores
     values = [score for _, score in scores]
-
+    # print(values)
     # Get the maximum and minimum scores
     max_score = max(values)
     min_score = min(values)
@@ -162,9 +162,10 @@ def search_title(query, index, index_2, ngram=False):
                     title_2gram_set = generate_word_2grams(words)
                     jccard = freq / len(query_2gram_set.union(title_2gram_set))
                     dict_cosine_sim[doc_id] += jccard
-
+    if not dict_cosine_sim:
+      return []
     sorted_docs = sorted(dict_cosine_sim.items(), key=lambda x: x[1], reverse=True)
-    top_100_docs = sorted_docs[:100]
+    top_100_docs = sorted_docs[:150]
     top_100_norm = min_max_list(top_100_docs)
 
     return top_100_norm
@@ -179,9 +180,10 @@ def search_anchor(query, index):
             for doc_id, freq in posting_list:
                 dict_cosine_sim[doc_id] += freq
 
-    # Sort and select the top 100 documents
+    if not dict_cosine_sim:
+      return []
     sorted_docs = sorted(dict_cosine_sim.items(), key=lambda x: x[1], reverse=True)
-    top_100_docs = sorted_docs[:100]
+    top_100_docs = sorted_docs[:150]
     top_100_norm = min_max_list(top_100_docs)
     return top_100_norm
 
@@ -224,15 +226,17 @@ def search_body_2(query, index_body1, index_body2):
                 new_tuple = (current_tuple[0] + jccard, current_tuple[1] + 1)  # Modify the tuple
                 dict_of_tuples[doc_id] = new_tuple  # Update the dictionary
 
-        # Sorting the top 200 tuples according to sequence count
-        sorted_docs = sorted(dict_of_tuples.items(), key=lambda x: x[1][1], reverse=True)
-        top_200_docs = sorted_docs[:200]
+    if not dict_of_tuples:
+      return []
+    # Sorting the top 200 tuples according to sequence count
+    sorted_docs = sorted(dict_of_tuples.items(), key=lambda x: x[1][1], reverse=True)
+    top_200_docs = sorted_docs[:150]
 
-        # Sorting the top 100 tuples according to TF
-        top_100_tf_sorted = sorted(top_200_docs, key=lambda x: x[1][0], reverse=True)[:100]
+    # Sorting the top 100 tuples according to TF
+    top_100_tf_sorted = sorted(top_200_docs, key=lambda x: x[1][0], reverse=True)[:100]
 
-        top_100_norm = min_max_body_2(top_100_tf_sorted)
-        return top_100_norm
+    top_100_norm = min_max_body_2(top_100_tf_sorted)
+    return top_100_norm
 
 
 def search_res(inverted_title, inverted_title_2_words, inverted_body, inverted_body_2_words, inverted_anchor, query):
@@ -245,6 +249,7 @@ def search_res(inverted_title, inverted_title_2_words, inverted_body, inverted_b
     if len(query_filtered) > 1:
         score_dic_res = score2(inverted_title, inverted_body, inverted_title_2_words, inverted_anchor, query)
         score_title_2_ngrams = search_title(query, inverted_title, inverted_title_2_words, ngram=True)
+        score_body_2_ngrams = search_body_2(query, inverted_body, inverted_body_2_words)
 
         for doc_id, score in score_dic_res.items():
             res_dict[doc_id] += score * 1/10
@@ -253,11 +258,11 @@ def search_res(inverted_title, inverted_title_2_words, inverted_body, inverted_b
             res_dict[doc_id] += score * 9/10
 
         for doc_id, score in score_body_2_ngrams:
-            res_dict[doc_id] += 2/10
+            res_dict[doc_id] += 1/10
 
 
     sorted_docs = sorted(res_dict.items(), key=lambda x: x[1], reverse=True)
-    top_100_docs = sorted_docs[:60]
+    top_100_docs = sorted_docs[:30]
 
     # Return a list of tuples containing the document ID and its title
     result = [(str(doc_id), inverted_title.doc_id_title[doc_id]) for doc_id, _ in top_100_docs]
@@ -272,10 +277,10 @@ def score_one_word(inverted_title, inverted_body, inverted_title_2_words, invert
 
     res_dict = defaultdict(float)
     for doc_id, score in score_title:
-        res_dict[doc_id] += score * 12/20
+        res_dict[doc_id] += score * 10/20
 
     for doc_id, score in score_anchor:
-        res_dict[doc_id] += score * 8/20
+        res_dict[doc_id] += score * 10/20
 
     return res_dict
 
@@ -291,7 +296,7 @@ def score2(inverted_title, inverted_body, inverted_title_2_words, inverted_ancho
         res_dict[doc_id] += score * 7 / 16
 
     for doc_id, score in score_body:
-        res_dict[doc_id] += score * 2 / 16
+        res_dict[doc_id] += score * 1 / 16
 
     for doc_id, score in score_anchor:
         res_dict[doc_id] += score * 7 / 16
