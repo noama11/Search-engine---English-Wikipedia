@@ -1,5 +1,4 @@
 # IR-final-project <br />
-## Authors: Tomer Katzav, Noam Cohen, Shay Herling <br /> <br />
 
 
 **Overview:**
